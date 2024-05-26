@@ -1,13 +1,13 @@
-#[cfg(feature="parking_lot")]
+#[cfg(feature = "parking_lot")]
 use std::sync::Arc;
 
-#[cfg(feature="parking_lot")]
+#[cfg(feature = "parking_lot")]
 use tokio_condvar::parking_lot::Condvar;
 
-#[cfg(feature="parking_lot")]
-use parking_lot::{RwLock, Mutex};
+#[cfg(feature = "parking_lot")]
+use parking_lot::{Mutex, RwLock};
 
-#[cfg(feature="parking_lot")]
+#[cfg(feature = "parking_lot")]
 #[tokio::test]
 async fn notify() {
     let mutex = Arc::new(Mutex::new(false));
@@ -33,7 +33,7 @@ async fn notify() {
     assert!(*lock);
 }
 
-#[cfg(feature="parking_lot")]
+#[cfg(feature = "parking_lot")]
 #[tokio::test]
 async fn rw_notify() {
     let lock = Arc::new(RwLock::new(false));

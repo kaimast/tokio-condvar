@@ -1,6 +1,6 @@
 use tokio::sync::{MutexGuard, Notify};
 
-#[cfg(feature="parking_lot")]
+#[cfg(feature = "parking_lot")]
 pub mod parking_lot;
 
 #[derive(Default)]

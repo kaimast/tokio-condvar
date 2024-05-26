@@ -27,5 +27,3 @@ async fn wait() {
     // The value must have been set to true at this point
     assert!(*lock);
 }
-
-
