@@ -42,7 +42,10 @@ impl Condvar {
     }
 
     /// Same as `Self::wait` but for a parking_lot read-write lock
-    pub async fn rw_wait<'a, T>(&self, guard: RwLockReadGuard<'a, T>) -> RwLockReadGuard<'a, T> {
+    pub async fn rw_read_wait<'a, T>(
+        &self,
+        guard: RwLockReadGuard<'a, T>,
+    ) -> RwLockReadGuard<'a, T> {
         let fut = self.inner.notified();
         tokio::pin!(fut);
         fut.as_mut().enable();

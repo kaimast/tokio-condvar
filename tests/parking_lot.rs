@@ -52,7 +52,7 @@ async fn rw_notify() {
 
     let mut guard = lock.read();
     while !*guard {
-        guard = cond.rw_wait(guard).await;
+        guard = cond.rw_read_wait(guard).await;
     }
 
     // The value must have been set to true at this point

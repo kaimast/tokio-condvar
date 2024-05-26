@@ -1,5 +1,6 @@
 Unreleased:
 - (Optional) support for parking lot
+- Support waiting on a read-write lock
 
 v0.1:
 - Initial release
