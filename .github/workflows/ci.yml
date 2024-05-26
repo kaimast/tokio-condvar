@@ -19,6 +19,10 @@ jobs:
       with:
          toolchain: stable
          components: cargo, rustc, clippy
+    - name: Setup rust dependency caching
+      uses: Swatinem/rust-cache@v2
+      with:
+         workspaces: ". -> target"
     - name: Lint Checks
       run: cargo clippy -- -D warnings
     - name: Tests
