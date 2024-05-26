@@ -1,7 +1,8 @@
-use tokio::sync::{MutexGuard, Notify};
+// See this clippy bug: https://github.com/rust-lang/rust-clippy/issues/8777
+#![allow(clippy::await_holding_lock)]
 
-#[cfg(feature = "parking_lot")]
-pub mod parking_lot;
+use parking_lot::{MutexGuard, RwLockReadGuard};
+use tokio::sync::Notify;
 
 #[derive(Default)]
 pub struct Condvar {
@@ -37,6 +38,19 @@ impl Condvar {
         drop(guard);
 
         fut.await;
-        mutex.lock().await
+        mutex.lock()
+    }
+
+    /// Same as `Self::wait` but for a parking_lot read-write lock
+    pub async fn rw_wait<'a, T>(&self, guard: RwLockReadGuard<'a, T>) -> RwLockReadGuard<'a, T> {
+        let fut = self.inner.notified();
+        tokio::pin!(fut);
+        fut.as_mut().enable();
+
+        let lock = RwLockReadGuard::rwlock(&guard);
+        drop(guard);
+
+        fut.await;
+        lock.read()
     }
 }
