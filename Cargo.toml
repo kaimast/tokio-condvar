@@ -11,3 +11,8 @@ keywords = ["concurrency", "sync"]
 
 [dependencies]
 tokio = { version="1", features=["sync", "macros", "rt"] }
+parking_lot = { version="0.12", optional=true }
+
+[features]
+all = ["parking_lot"]
+default = []

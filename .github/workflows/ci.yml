@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install rustc and clippy
+      uses: dtolnay/rust-toolchain@stable
+      with:
+         toolchain: stable
+         components: cargo, rustc, clippy
+    - name: Setup rust dependency caching
+      uses: Swatinem/rust-cache@v2
+      with:
+         workspaces: ". -> target"
+    - name: Lint Checks
+      run: cargo clippy -- -D warnings
+    - name: Tests
+      run: env RUST_LOG=debug cargo test --features=all

@@ -1,5 +1,6 @@
 # A Condition Variable for Tokio
 
+[![ci-badge](https://github.com/kaimast/tokio-condvar/actions/workflows/ci.yml/badge.svg)](https://github.com/kaimast/tokio-condvar/actions)
 [![license-badge](https://img.shields.io/crates/l/tokio-condvar)](https://github.com/kaimast/tokio-condvar-rs/blob/main/LICENSE)
 [![crates-badge](https://img.shields.io/crates/v/tokio-condvar)](https://crates.io/crates/tokio-condvar)
 
