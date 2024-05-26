@@ -1,7 +1,5 @@
-use tokio::sync::{MutexGuard, Notify};
-
-#[cfg(feature="parking_lot")]
-pub mod parking_lot;
+use tokio::sync::Notify;
+use parking_lot::{RwLockReadGuard, MutexGuard};
 
 #[derive(Default)]
 pub struct Condvar {
@@ -37,6 +35,22 @@ impl Condvar {
         drop(guard);
 
         fut.await;
-        mutex.lock().await
+        mutex.lock()
+    }
+
+    /// Same as `Self::wait` but for a parking_lot read-write lock
+    pub async fn rw_wait<'a, T>(
+        &self,
+        guard: RwLockReadGuard<'a, T>,
+    ) -> RwLockReadGuard<'a, T> {
+        let fut = self.inner.notified();
+        tokio::pin!(fut);
+        fut.as_mut().enable();
+
+        let lock = RwLockReadGuard::rwlock(&guard);
+        drop(guard);
+
+        fut.await;
+        lock.read()
     }
 }
