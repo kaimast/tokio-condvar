@@ -1,5 +1,5 @@
 UNRELEASED:
-- Make parking lot waits send
+- Make parking_lot waits Send
 - Add rw_write_wait
 
 v0.2:
