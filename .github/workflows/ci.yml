@@ -24,6 +24,6 @@ jobs:
       with:
          workspaces: ". -> target"
     - name: Lint Checks
-      run: cargo clippy --features=all -- -D warnings
+      run: make lint
     - name: Tests
-      run: env RUST_LOG=debug cargo test --features=all
+      run: env RUST_LOG=debug make test
