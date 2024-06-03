@@ -18,11 +18,11 @@ impl Condvar {
         self.inner.notify_waiters();
     }
 
-    /// Wake up exactly one task that is currently waiting on this condition variable
-    /// If no task is waiting, none will be woken up.
+    /// Wake up exactly one task that is currently waiting on this condition variable.
+    ///
+    /// Note: If no task is currently waiting, this might lead to spurious wakeups in the future.
     pub fn notify_one(&self) {
-        // Not supported yet
-        self.inner.notify_waiters();
+        self.inner.notify_one();
     }
 
     /// Wait to be woken up while holding a lock
