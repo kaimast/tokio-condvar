@@ -1,7 +1,13 @@
 // See this clippy bug: https://github.com/rust-lang/rust-clippy/issues/8777
 #![allow(clippy::await_holding_lock)]
 
-use parking_lot::{MutexGuard, RwLockReadGuard};
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
+
+use parking_lot::{MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use tokio::sync::futures::Notified;
 use tokio::sync::Notify;
 
 #[derive(Default)]
@@ -9,6 +15,37 @@ pub struct Condvar {
     inner: Notify,
 }
 
+pub struct RwReadFuture<'a, T> {
+    lock: &'a RwLock<T>,
+    inner: Pin<Box<Notified<'a>>>,
+}
+
+impl<'a, T> Future for RwReadFuture<'a, T> {
+    type Output = RwLockReadGuard<'a, T>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match Notified::poll(self.inner.as_mut(), cx) {
+            Poll::Ready(_) => Poll::Ready(self.lock.read()),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+pub struct RwWriteFuture<'a, T> {
+    lock: &'a RwLock<T>,
+    inner: Pin<Box<Notified<'a>>>,
+}
+
+impl<'a, T> Future for RwWriteFuture<'a, T> {
+    type Output = RwLockWriteGuard<'a, T>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match Notified::poll(self.inner.as_mut(), cx) {
+            Poll::Ready(_) => Poll::Ready(self.lock.write()),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
 impl Condvar {
     pub fn new() -> Self {
         Self::default()
@@ -30,9 +67,7 @@ impl Condvar {
     /// This function will automatically release the lock before waiting
     /// and reacquires it after waking up
     pub async fn wait<'a, T>(&self, guard: MutexGuard<'a, T>) -> MutexGuard<'a, T> {
-        let fut = self.inner.notified();
-        tokio::pin!(fut);
-        fut.as_mut().enable();
+        let fut = Box::pin(self.inner.notified());
 
         let mutex = MutexGuard::mutex(&guard);
         drop(guard);
@@ -42,18 +77,54 @@ impl Condvar {
     }
 
     /// Same as `Self::wait` but for a parking_lot read-write lock
-    pub async fn rw_read_wait<'a, T>(
-        &self,
-        guard: RwLockReadGuard<'a, T>,
-    ) -> RwLockReadGuard<'a, T> {
-        let fut = self.inner.notified();
-        tokio::pin!(fut);
-        fut.as_mut().enable();
+    pub fn rw_read_wait<'a, T>(&'a self, guard: RwLockReadGuard<'a, T>) -> RwReadFuture<'a, T> {
+        let mut notify_fut = Box::pin(self.inner.notified());
+        notify_fut.as_mut().enable();
 
         let lock = RwLockReadGuard::rwlock(&guard);
-        drop(guard);
 
-        fut.await;
-        lock.read()
+        RwReadFuture {
+            lock,
+            inner: notify_fut,
+        }
+    }
+
+    /// Same as Self::wait but for a RwLockWriteGuard
+    pub fn rw_write_wait<'a, T>(&'a self, guard: RwLockWriteGuard<'a, T>) -> RwWriteFuture<'a, T> {
+        let mut notify_fut = Box::pin(self.inner.notified());
+        notify_fut.as_mut().enable();
+
+        let lock = RwLockWriteGuard::rwlock(&guard);
+
+        RwWriteFuture {
+            lock,
+            inner: notify_fut,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parking_lot::RwLock;
+
+    fn assert_send<T: Send>(_: T) {}
+
+    #[tokio::test]
+    async fn rw_read_is_send() {
+        let lock = RwLock::new(false);
+        let cond = Condvar::default();
+        let guard = lock.read();
+
+        assert_send(cond.rw_read_wait(guard));
+    }
+
+    #[tokio::test]
+    async fn rw_write_is_send() {
+        let lock = RwLock::new(false);
+        let cond = Condvar::default();
+        let guard = lock.write();
+
+        assert_send(cond.rw_write_wait(guard));
     }
 }

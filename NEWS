@@ -1,3 +1,7 @@
+UNRELEASED:
+- Make parking lot waits send
+- Add rw_write_wait
+
 v0.2:
 - (Optional) support for parking lot
 - Support waiting on a read-write lock
