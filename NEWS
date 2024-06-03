@@ -1,4 +1,4 @@
-UNRELEASED:
+v0.3:
 - Make parking_lot waits Send
 - Add rw_write_wait
 
