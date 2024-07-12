@@ -1,11 +1,8 @@
-// See this clippy bug: https://github.com/rust-lang/rust-clippy/issues/8777
-#![allow(clippy::await_holding_lock)]
-
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use parking_lot::{MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use tokio::sync::futures::Notified;
 use tokio::sync::Notify;
@@ -13,6 +10,22 @@ use tokio::sync::Notify;
 #[derive(Default)]
 pub struct Condvar {
     inner: Notify,
+}
+
+pub struct MutexFuture<'a, T> {
+    mutex: &'a Mutex<T>,
+    inner: Pin<Box<Notified<'a>>>,
+}
+
+impl<'a, T> Future for MutexFuture<'a, T> {
+    type Output = MutexGuard<'a, T>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match Notified::poll(self.inner.as_mut(), cx) {
+            Poll::Ready(_) => Poll::Ready(self.mutex.lock()),
+            Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
 pub struct RwReadFuture<'a, T> {
@@ -46,6 +59,7 @@ impl<'a, T> Future for RwWriteFuture<'a, T> {
         }
     }
 }
+
 impl Condvar {
     pub fn new() -> Self {
         Self::default()
@@ -66,14 +80,17 @@ impl Condvar {
     /// Wait to be woken up while holding a lock
     /// This function will automatically release the lock before waiting
     /// and reacquires it after waking up
-    pub async fn wait<'a, T>(&self, guard: MutexGuard<'a, T>) -> MutexGuard<'a, T> {
-        let fut = Box::pin(self.inner.notified());
+    pub fn wait<'a, T>(&'a self, guard: MutexGuard<'a, T>) -> MutexFuture<'a, T> {
+        let mut notify_fut = Box::pin(self.inner.notified());
+        notify_fut.as_mut().enable();
 
         let mutex = MutexGuard::mutex(&guard);
         drop(guard);
 
-        fut.await;
-        mutex.lock()
+        MutexFuture {
+            mutex,
+            inner: notify_fut,
+        }
     }
 
     /// Same as `Self::wait` but for a parking_lot read-write lock
